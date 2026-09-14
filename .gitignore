@@ -1,6 +1,7 @@
 .env.dspark
 .env.dspark.works
 .env
+.env.nvfp4
 .secrets/
 *.pem
 *.key

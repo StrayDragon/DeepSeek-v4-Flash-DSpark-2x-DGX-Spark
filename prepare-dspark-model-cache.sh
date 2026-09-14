@@ -127,6 +127,20 @@ else
 fi
 unset _HF_TOKEN_SRC
 
+# Optional Hub endpoint pass-through for the online download blocks. Precedence:
+# exported shell HF_ENDPOINT -> HF_ENDPOINT in $ENV_FILE -> unset. An unset value
+# stays unset so huggingface_hub's own default (https://huggingface.co) applies;
+# nothing here hard-codes a mirror. The offline verify block (local_files_only)
+# does not need it and keeps its "never re-hits the hub" contract. The worker
+# inherits this automatically: the same bytes are scp'd as .env.dspark there.
+DOCKER_HF_ENDPOINT_ARGS=()
+if [ -n "${HF_ENDPOINT:-}" ]; then
+  DOCKER_HF_ENDPOINT_ARGS=(-e "HF_ENDPOINT=${HF_ENDPOINT}")
+  echo "prepare: HF_ENDPOINT: ${HF_ENDPOINT}" >&2
+else
+  echo "prepare: HF_ENDPOINT: unset (hub default https://huggingface.co)" >&2
+fi
+
 resolve_revision() {
   # Runtime ablation still serves official Vision-Exp. Keep the official pin.
   if [ -n "${DSPARK_REVISION+x}" ]; then
@@ -249,6 +263,7 @@ run_download() {
     -e DSPARK_MODEL="$model" \
     -e DSPARK_REVISION="$revision" \
     -e HF_DOWNLOAD_WORKERS="$HF_DOWNLOAD_WORKERS" \
+    "${DOCKER_HF_ENDPOINT_ARGS[@]}" \
     "${DOCKER_HF_TOKEN_ARGS[@]}" \
     --entrypoint "$IMAGE_PYTHON" \
     "$DSPARK_VLLM_IMAGE" \
@@ -352,6 +367,7 @@ run_gated_ablit_artifacts() {
     -e DSPARK_ABLATE_DIRECTION_REPO="$direction_repo" \
     -e DSPARK_ABLATE_DIRECTION_FILE="$direction_file" \
     -e DSPARK_ABLATE_DIRECTION_SHA256="$expected_sha" \
+    "${DOCKER_HF_ENDPOINT_ARGS[@]}" \
     "${DOCKER_HF_TOKEN_ARGS[@]}" \
     --entrypoint "$IMAGE_PYTHON" \
     "$DSPARK_VLLM_IMAGE" \
